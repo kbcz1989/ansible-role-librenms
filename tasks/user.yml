@@ -1,0 +1,27 @@
+---
+- name: Create librenms group.
+  group:
+    name: "{{ librenms_group }}"
+    state: present
+
+- name: Create librenms user.
+  user:
+    name: "{{ librenms_user }}"
+    shell: /bin/bash
+    group: "{{ librenms_group }}"
+    home: "{{ librenms_home }}"
+    create_home: no
+    append: no
+    system: yes
+    state: present
+  notify:
+    - restart apache
+
+- name: Add www-data to librenms group.
+  user:
+    name: www-data
+    groups:
+      - www-data
+      - "{{ librenms_group }}"
+  notify:
+    - restart apache

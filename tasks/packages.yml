@@ -1,0 +1,17 @@
+---
+- name: "Enable universe repo"
+  apt_repository:
+    repo: '{{ item }}'
+    state: present
+  with_items:
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} universe"
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-updates universe"
+  when: ansible_architecture == "x86_64" and
+        ansible_distribution == "Ubuntu"
+
+- name: install required packages.
+  apt:
+    name: "{{ librenms_packages }}"
+    cache_valid_time: 3600
+  when: ansible_architecture == "x86_64" and
+        ansible_distribution == "Ubuntu"

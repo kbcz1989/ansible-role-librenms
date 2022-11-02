@@ -1,0 +1,77 @@
+#
+# This is an example VCL file for Varnish.
+#
+# It does not do anything by default, delegating control to the
+# builtin VCL. The builtin VCL is called when there is no explicit
+# return statement.
+#
+# See the VCL chapters in the Users Guide at https://www.varnish-cache.org/docs/
+# and http://varnish-cache.org/trac/wiki/VCLExamples for more examples.
+
+# Marker to tell the VCL compiler that this VCL has been adapted to the
+# new 4.0 format.
+vcl 4.0;
+
+# Default backend definition. Set this to point to your Apache server.
+backend librenms {
+    .host = "127.0.0.1";
+    .port = "8080";
+}
+
+# In this example our objective is to cache static content with Varnish and temporarily
+# cache dynamic content in the client web browser.
+
+sub vcl_recv {
+    # HTTP requests from client web browser.
+    # Here we remove any cookie HTTP requests for the 'librenms.domain.net' host
+    # containing the matching file extensions. We don't have to match by host if you
+    # only have LibreNMS running on Apache.
+    # If the cookies are not removed from the HTTP request then Varnish will not cache
+    # the files. 'else' function is set to 'pass', or don't cache anything that doesn't
+    # match.
+
+    if (req.http.host ~ "^{{ librenms_config_mydomain }}") {
+        set req.backend_hint = librenms;
+        if (req.url ~ "\.(png|gif|jpg|jpeg|ico|pdf|js|css|svg|eot|otf|woff|woff2|ttf)$") {
+            unset req.http.Cookie;
+        }
+
+        else{
+            return(pass);
+        }
+    }
+}
+
+sub vcl_backend_response {
+    # 'sub vcl_backend_response' is the same function as 'sub vcl_fetch' in Varnish 3, however,
+    # the syntax is slightly different
+    # This function happens after we read the response headers from the backend (Apache).
+    # First function 'if (bereq.url ~ "\' removes cookies from the Apache HTTP responses
+    # that match the file extensions that are between the quotes, and cache the files for 24 hours.
+    # This assumes you update LibreNMS once a day, otherwise restart Varnish to clear cache.
+    # Second function 'if (bereq.url ~ "^/' removes the Pragma no-cache statements and sets the age
+    # of how long the client browser will cache the matching urls.
+    # LibreNMS graphs are updated every 300 seconds, 'max-age=300' is set to match this behavior.
+    # We could cache these URLs in Varnish but it would add to the complexity of the config.
+
+    if (bereq.http.host ~ "^{{ librenms_config_mydomain }}") {
+        if (bereq.url ~ "\.(png|gif|jpg|jpeg|ico|pdf|js|css|svg|eot|otf|woff|woff2|ttf)$") {
+            unset beresp.http.Set-cookie;
+            set beresp.ttl = 24h;
+        }
+
+        if (bereq.url ~ "^/graph.php" || "^/device/" || "^/iftype/" || "^/customers/" || "^/health/" || "^/apps/" || "^/(plugin)$" || "^/(alert)$" || "^/eventlog/" || "^/graphs/" || "^/ports/" ) {
+            unset beresp.http.Pragma;
+            set beresp.http.Cache-Control = "max-age=300";
+        }
+    }
+}
+
+sub vcl_deliver {
+    # Happens when we have all the pieces we need, and are about to send the
+    # response to the client.
+    # You can do accounting or modifying the final object here.
+
+    return (deliver);
+}
+

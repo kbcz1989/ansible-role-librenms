@@ -1,0 +1,87 @@
+---
+- name: Update environment settings in "{{ librenms_home }}/.env"
+  lineinfile:
+    path: "{{ librenms_home }}/.env"
+    regex: "{{ item.old_line }}"
+    line: "{{ item.new_line }}"
+  with_items: "{{ librenms_environment_settings }}"
+  no_log: true
+
+- name: Build DB
+  become: True
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  command: lnms migrate --force
+  args:
+    chdir: "{{ librenms_home }}"
+  register: build_db
+  changed_when: "'Nothing to migrate.' not in build_db.stdout"
+  tags:
+    - build_db
+
+- name: Create admin user and password.
+  command: "./adduser.php {{ librenms_admin_user }} {{ librenms_admin_password }} 10"
+  args:
+    chdir: "{{ librenms_home }}"
+  become_user: "{{ librenms_user }}"
+  become: true
+  register: librenms_admin_user
+  changed_when: "'User admin already exists!' not in librenms_admin_user.stdout"
+  tags:
+    - librenms_admin_user
+
+- name: Deploy config.php
+  template:
+    src: opt/librenms/config.php.j2
+    dest: "{{ librenms_home }}/config.php"
+    owner: "{{ librenms_user }}"
+    group: "{{ librenms_group }}"
+    mode: 0640
+  tags:
+    - config.php
+  notify:
+    - restart apache
+
+- name: Delete "INSTALL=true" in "{{ librenms_home }}/.env"
+  lineinfile:
+    path: "{{ librenms_home }}/.env"
+    line: "INSTALL=true"
+    state: absent
+  tags:
+    - delete_INSTALL
+
+- name: Load distribution cron file
+  slurp:
+    src: "{{ librenms_home }}/librenms.nonroot.cron"
+  register: distribution_cron
+  tags:
+    - cronjob
+
+- name: Deploy librenms cronjob
+  copy:
+    content: "{{ distribution_cron.content | b64decode | replace('/opt/librenms', librenms_home) }}"
+    dest: /etc/cron.d/librenms
+    mode: 0644
+    force: no
+  become: true
+  tags:
+    - cronjob
+
+- name: Load distribution logrotate file
+  slurp:
+    src: "{{ librenms_home }}/misc/librenms.logrotate"
+  register: distribution_logrotate
+  tags:
+    - logrotate
+
+- name: Deploy librenms logrotate
+  copy:
+    content: "{{ distribution_logrotate.content | b64decode | replace('/opt/librenms', librenms_home) }}"
+    dest: /etc/logrotate.d/librenms
+    mode: 0644
+    force: no
+  become: true
+  tags:
+    - logrotate
+

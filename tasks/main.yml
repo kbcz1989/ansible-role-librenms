@@ -1,0 +1,46 @@
+---
+# tasks file for ansible-role-librenms
+- name: Install packages
+  import_tasks: packages.yml
+  tags:
+    - packages
+
+- name: Configure user.
+  import_tasks: user.yml
+  tags:
+    - user
+
+- name: Install librenms.
+  import_tasks: librenms-install.yml
+  tags:
+    - librenms-install
+    - librenms
+
+- name: Install rrdcached.
+  import_tasks: rrdcached.yml
+  tags:
+    - rrdcached
+
+- name: Install nagios plugins.
+  import_tasks: nagios_plugins.yml
+  tags:
+    - nagios-plugins
+    - nagios
+
+- name: Configure librenms.
+  import_tasks: librenms-config.yml
+  tags:
+    - librenms-config
+    - librenms
+
+- name: Install and configure Socialite
+  import_tasks: librenms-socialite.yml
+  tags:
+    - librenms_socialite
+    - librenms
+
+- name: LibreNMS postinst configuration
+  import_tasks: librenms-postinst.yml
+  tags:
+    - librenms_postinst
+    - librenms

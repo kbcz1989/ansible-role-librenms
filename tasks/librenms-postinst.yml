@@ -1,0 +1,15 @@
+---
+- name: LibreNMS postinst configuration
+  become: True
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  shell: "lnms {{ item }}"
+  args:
+    chdir: "{{ librenms_home }}"
+  with_items: "{{ librenms_postinst_config | default([], true) }}"
+  when: librenms_postinst_config is defined
+  tags:
+    - librenms
+    - librenms_postinst
+

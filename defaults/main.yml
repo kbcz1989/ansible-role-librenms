@@ -1,0 +1,217 @@
+---
+# defaults file for ansible-role-librenms
+# packages to install
+librenms_packages:
+  - acl
+  - curl
+  - composer
+  - fping
+  - git
+  - graphviz
+  - imagemagick
+  - mtr-tiny
+  - nmap
+  - rrdtool
+  - snmp
+  - snmpd
+  - whois
+  - python3-pymysql
+  - python3-dotenv
+  - python3-redis
+  - python3-setuptools
+  - python3-systemd
+  - python3-pip
+
+# User and group to create with home directory
+librenms_user: librenms
+librenms_home: /opt/librenms
+librenms_group: "{{ librenms_user }}"
+
+# SQL database to create
+librenms_sql_databases:
+  - name: librenms
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+
+# SQL database password, must be set
+# librenms_sql_db_password:
+
+# SQL Users to create
+librenms_sql_users:
+  - name: librenms
+    password: "{{ librenms_sql_db_password | default('TYkjTw2S9aWpMnyu', true) }}"
+    priv: "librenms.*:ALL"
+
+# Default admin user and password
+librenms_admin_user: admin
+
+# only set once during installation
+librenms_admin_password: admin
+
+# The auth mechanism to use (mysql, ldap)
+librenms_config_auth_mechanism: mysql
+
+# The librenms baseurl
+librenms_config_base_url: "http://{{ librenms_config_mydomain }}"
+
+# The librenms domain
+librenms_config_mydomain: "{{ inventory_hostname }}"
+
+# Ignore interfaces
+librenms_config_bad_if_regexps:
+  - '/^docker[\w]+$/'
+  - '/^lxcbr[0-9]+$/'
+  - '/^fwln.+$/'
+  - '/^fwpr.+$/'
+  - '/^fwbr.+$/'
+  - '/^br.+$/'
+  - '/^veth.*$/'
+  - '/^virbr.*$/'
+  - '/^lo$/'
+  - '/^sit.*$/'
+  - '/^dummy.*$/'
+#  - '/^macvtap.*$/'
+#  - '/tun[0-9]+$/'
+
+# Ignore the following mounts
+librenms_ignore_mounts:
+  # common
+  - /run
+  - /run/lock
+  - /sys/fs/cgroup
+  - /dev/shm
+  # pve
+  - /boot/efi
+  # synology
+  - /tmp
+  # thecus
+  - /rom
+  - /syslog
+  - /var
+  - /etc
+
+# Ignore the following mounts (regex)
+librenms_ignore_mounts_regexp: []
+# e.g.
+#
+#  # jenkins and jenkins nodes
+#  - /^\/run\/user\/\d+/
+#  # NFS mount points on thecus
+#  - /^\/raid\d+\/data\/_NAS_NFS_Exports_\/.+/
+#  # Thecus raidsys
+#  - /^\/raidsys\/\d+/
+
+# Path to the rrdached socket.
+librenms_rrdcached: unix:/var/run/rrdcached.sock
+librenms_rrdcached_settings:
+  - key: WRITE_TIMEOUT
+    value: 1800
+  - key: WRITE_JITTER
+    value: 1800
+  - key: WRITE_THREADS
+    value: 4
+  - key: BASE_PATH
+    value: "{{ librenms_home}}/rrd/"
+  - key: SOCKGROUP
+    value: librenms
+  - key: DAEMON_GROUP
+    value: librenms
+  - key: DAEMON_USER
+    value: librenms
+  - key: BASE_OPTIONS
+    value: "-B -F -R"
+
+# The rrdtool version that is used
+librenms_rrdtool_version: 1.7.0
+
+# Networks for autodiscovery
+librenms_config_nets: []
+# - 192.168.10.0/24
+
+# snmp configuration
+librenms_config_snmp_timeout: 1
+librenms_config_snmp_retries: 3
+librenms_config_snmp_community: community
+librenms_config_snmp_authlevel: authPriv
+# must be set!
+# librenms_config_snmp_authname: # "snmp-user"
+# librenms_config_snmp_authpass: # "snmp-password"
+# librenms_config_snmp_cryptopass: # "snmp-encryption"
+
+# When set to true ldap is configured and the other ldap variables must be set
+librenms_config_ldap: false
+# The server to use
+librenms_config_auth_ldap_server:  # e.g. ldap.main.corp
+# The server to use
+librenms_config_auth_ldap_suffix:  # e.g. "ou=users,ou=location,dc=main,dc=corp"
+librenms_config_auth_ldap_groupbase:  # e.g. "ou=groups,ou=location,dc=main,dc=corp"
+librenms_config_auth_ldap_group:  # e.g. "cn=all,ou=groups,ou=location,dc=main,dc=corp"
+librenms_config_auth_ldap_binddn:  # e.g. "uid=ldapbind,ou=system,ou=location,dc=main,dc=corp"
+librenms_config_auth_ldap_bindpassword:  # e.g. "password_from_ldapbinduser"
+
+# Enables, disables proxmox in librenms
+librenms_config_enable_proxmox: 1
+
+# Enables/Disables influxdb feature
+librenms_config_influxdb_enable: false
+# The influxdb host
+librenms_config_influxdb_host:
+# The influxdb port
+librenms_config_influxdb_port: 8006
+# The influxdb database to use
+librenms_config_influxdb_db: librenms
+# The username for the influxdb
+librenms_config_influxdb_username: librenms
+# The password for the influxdb
+librenms_config_influxdb_password: librenms
+
+librenms_nagios_plugins_dir: /usr/lib/nagios/plugins
+
+librenms_nagios_plugins:
+  - url: https://gist.githubusercontent.com/tobias-richter/5d73a0bab773ee24f01a93cea20059d9/raw/df17577e2bade03fa5068c5571b5bbb2e6cff6d2/check_mdraid_mismatch
+    name: check_mdraid_mismatch
+
+librenms_git_tag:
+
+librenms_environment_settings:
+  - old_line: "^#DB_HOST="
+    new_line: "DB_HOST=localhost"
+  - old_line: "^#DB_DATABASE="
+    new_line: "DB_DATABASE={{ librenms_sql_databases[0].name }}"
+  - old_line: "^#DB_USERNAME="
+    new_line: "DB_USERNAME={{ librenms_sql_users[0].name }}"
+  - old_line: "^#DB_PASSWORD="
+    new_line: "DB_PASSWORD={{ librenms_sql_db_password }}"
+  - old_line: "^#APP_URL="
+    new_line: "APP_URL=http://{{ librenms_config_mydomain }}"
+
+librenms_custom_config:
+
+librenms_install_mysql: true
+librenms_install_php: true
+librenms_install_apache: true
+librenms_install_snmp: true
+librenms_install_varnish: false
+
+varnish_version: "7.1"
+varnish_secret: "14bac2e6-1e34-4770-8078-974373b76c90"
+varnish_storage: "malloc,512M"
+varnishd_extra_options: "-p thread_pool_min=5 -p thread_pool_max=500 -p thread_pool_timeout=300"
+varnish_default_vcl_template_path: etc/varnish/default.vcl.j2
+
+librenms_socialite_providers:
+librenms_socialite_plugins_saml2_metadata_url:
+
+librenms_socialite_settings:
+#  register: "false"
+#  redirect: "false"
+librenms_socialite_microsoft_plugin_install: false
+librenms_socialite_microsoft_plugin_settings:
+#  client_id:
+#  client_secret:
+#  tenant:
+librenms_socialite_saml_plugin_install: false
+librenms_socialite_saml_plugin_settings:
+#  metadata:
+
+librenms_postinst_config: []

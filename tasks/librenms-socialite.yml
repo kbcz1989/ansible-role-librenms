@@ -1,0 +1,92 @@
+---
+- name: Configure Socialite
+  command: "lnms config:set auth.socialite.{{ item.key }} {{ item.value }}"
+  become: yes
+  become_user: "{{ librenms_user }}"
+  args:
+    chdir: "{{ librenms_home }}"
+  with_dict: "{{ librenms_socialite_settings }}"
+  when: (librenms_socialite_settings is defined) and (librenms_socialite_settings|length > 0)
+  tags:
+    - librenms_socialite
+    - librenms_socialite_settings
+
+- name: Install Socialite Microsoft plugin
+  become: yes
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  command: "lnms plugin:add socialiteproviders/microsoft"
+  args:
+    chdir: "{{ librenms_home }}"
+  when: librenms_socialite_microsoft_plugin_install | default(false, true)
+  tags:
+    - librenms_socialite
+    - librenms_socialite_microsoft_plugin_install
+
+- name: Enable Socialite Microsoft plugin
+  become: yes
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  command: 'lnms config:set auth.socialite.configs.microsoft.listener "\SocialiteProviders\Microsoft\MicrosoftExtendSocialite"'
+  args:
+    chdir: "{{ librenms_home }}"
+  when: librenms_socialite_microsoft_plugin_install | default(false, true)
+  tags:
+    - librenms_socialite
+    - librenms_socialite_microsoft_plugin_install
+
+- name: Configure Socialite Microsoft plugin
+  become: yes
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  command: "lnms config:set auth.socialite.configs.microsoft.{{ item.key }} {{ item.value }}"
+  args:
+    chdir: "{{ librenms_home }}"
+  with_dict: "{{ librenms_socialite_microsoft_plugin_settings | default([], true) }}"
+  when: librenms_socialite_microsoft_plugin_settings is defined
+  tags:
+    - librenms_socialite
+    - librenms_socialite_microsoft_plugin_settings
+
+- name: Install Socialite SAML plugin
+  become: yes
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  command: "lnms plugin:add socialiteproviders/saml2"
+  args:
+    chdir: "{{ librenms_home }}"
+  when: librenms_socialite_saml_plugin_install | default(false, true)
+  tags:
+    - librenms_socialite
+    - librenms_socialite_saml_plugin_install
+
+- name: Enable Socialite SAML plugin
+  become: yes
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  command: 'lnms config:set auth.socialite.configs.saml2.listener "\SocialiteProviders\Saml2\Saml2ExtendSocialite"'
+  args:
+    chdir: "{{ librenms_home }}"
+  when: librenms_socialite_saml_plugin_install | default(false, true)
+  tags:
+    - librenms_socialite
+    - librenms_socialite_saml_plugin_install
+
+- name: Configure Socialite SAML plugin
+  become: yes
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  command: "lnms config:set auth.socialite.configs.saml2.{{ item.key }} {{ item.value }}"
+  args:
+    chdir: "{{ librenms_home }}"
+  with_dict: "{{ librenms_socialite_saml_plugin_settings | default([], true) }}"
+  when: librenms_socialite_saml_plugin_settings is defined
+  tags:
+    - librenms_socialite
+    - librenms_socialite_saml_plugin_settings

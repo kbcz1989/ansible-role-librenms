@@ -1,0 +1,10 @@
+- name: ansible-role-snmp
+  src: https://github.com/kbcz1989/ansible-role-snmp.git
+  version: v1.1.0
+- name: ansible-role-ntp
+  src: https://github.com/geerlingguy/ansible-role-ntp.git
+  version: efef608db8a0e729c0635fd5fe36902705796f63
+- name: geerlingguy.mysql
+- name: geerlingguy.php
+- name: geerlingguy.apache
+- name: geerlingguy.varnish

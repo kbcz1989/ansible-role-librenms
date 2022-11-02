@@ -1,0 +1,38 @@
+- name: install rrdcached.
+  apt:
+    name: rrdcached
+    cache_valid_time: 3600
+  when: ansible_architecture == "x86_64" and
+        ansible_os_family == "Debian" and
+        librenms_rrdcached is defined
+  tags:
+    - rrdcached
+    - rrdcached_install
+
+- name: Update /etc/default/rrdcached
+  lineinfile:
+    path: "/etc/default/rrdcached"
+    regex: '^#*\s*{{ item.key }}.*$'
+    line: "{{ item.key }}={{ item.value }}"
+  with_items: "{{ librenms_rrdcached_settings }}"
+  when: ansible_architecture == "x86_64" and
+        ansible_os_family == "Debian" and
+        librenms_rrdcached is defined
+  notify:
+    - restart rrdcached
+  tags:
+    - rrdcached
+    - rrdcached_configure
+
+- name: Change ownership on /var/lib/rrdcached/
+  file:
+    path: "/var/lib/rrdcached"
+    owner: "{{ librenms_user }}"
+    group: "{{ librenms_group }}"
+    recurse: true
+  when: ansible_architecture == "x86_64" and
+        ansible_os_family == "Debian" and
+        librenms_rrdcached is defined
+  tags:
+    - rrdcached
+    - rrdcached_ownership

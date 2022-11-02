@@ -1,0 +1,135 @@
+---
+- name: Check if librenms is already installed
+  stat:
+    path: "{{ librenms_home }}/.git"
+  register: __librenms_path
+  tags:
+    - git_clone
+
+- name: Get latest librenms release
+  uri:
+    url: https://api.github.com/repos/librenms/librenms/releases/latest
+    return_content: true
+  delegate_to: localhost
+  register: json_response
+  become: false
+  run_once: true
+  when: not librenms_git_tag
+  tags:
+    - git_clone
+
+- name: Create librenms home
+  ansible.builtin.file:
+    path: "{{ librenms_home }}"
+    state: directory
+    mode: '0771'
+    owner: "{{ librenms_user }}"
+    group: "{{ librenms_group }}"
+  tags:
+    - git_clone
+    - create_home
+
+- name: Clone librenms repo
+  git:
+    repo: https://github.com/librenms/librenms.git
+    dest: "{{ librenms_home }}"
+    version: "{{ librenms_git_tag | default(json_response.json.tag_name, true) }}"
+  become: true
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_remote_tmp: /tmp/ansible_librenms_clone_repo
+  when: not __librenms_path.stat.exists
+  tags:
+    - git_clone
+
+- name: Change ownership
+  file:
+    path: "{{ librenms_home }}"
+    owner: "{{ librenms_user }}"
+    group: "{{ librenms_group }}"
+    recurse: true
+  tags:
+    - ownership
+
+- name: "Apply permissions on {{ librenms_home }}"
+  file:
+    path: "{{ librenms_home }}"
+    mode: u=rwX,g=rwX
+  tags:
+    - permissions
+
+- name: Set acls
+  acl:
+    default: "{{ item.default | default(false) }}"
+    path: "{{ item.path }}"
+    permissions: "rwx"
+    etype: "group"
+    entity: "{{ librenms_group }}"
+    recursive: "{{ item.recursive | default(false) }}"
+    state: present
+  with_items:
+    # default rules
+    - path: "{{ librenms_home }}/rrd"
+      default: true
+    - path: "{{ librenms_home }}/logs"
+      default: true
+    - path: "{{ librenms_home }}/bootstrap/cache/"
+      default: true
+    - path: "{{ librenms_home }}/storage/"
+      default: true
+    # apply recursive
+    - path: "{{ librenms_home }}/rrd"
+      recursive: true
+    - path: "{{ librenms_home }}/logs"
+      recursive: true
+    - path: "{{ librenms_home }}/bootstrap/cache/"
+      recursive: true
+    - path: "{{ librenms_home }}/storage/"
+      recursive: true
+  tags:
+    - acls
+
+- name: Install python requirements.
+  pip:
+    executable: /usr/bin/pip3
+    requirements: "{{ librenms_home }}/requirements.txt"
+  become_user: "{{ librenms_user }}"
+  become: yes
+  tags:
+    - pip
+
+- name: Install PHP composer as librenms user  # noqa 301
+  become: True
+  become_user: "{{ librenms_user }}"
+  vars:
+    ansible_command_timeout: 3600
+  command: ./scripts/composer_wrapper.php install --no-dev
+  args:
+    chdir: "{{ librenms_home }}"
+  tags:
+    - composer
+
+- name: Enable lnms command completion - link
+  file:
+    src: "{{ librenms_home }}/lnms"
+    dest: /usr/local/bin/lnms
+    state: link
+  tags:
+    - lnms
+
+- name: Enable lnms command completion - copy file
+  copy:
+    remote_src: true
+    src: "{{ librenms_home }}/misc/lnms-completion.bash"
+    dest: /etc/bash_completion.d/
+  tags:
+    - lnms
+
+#- name: Update running daily.sh.  # noqa 301
+#  command: "./daily.sh"
+#  args:
+#    chdir: "{{ librenms_home }}"
+#  become_user: "{{ librenms_user }}"
+#  become: yes
+#  tags:
+#    - run_daily.sh

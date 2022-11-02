@@ -1,0 +1,203 @@
+---
+galaxy_info:
+  author: kbcz1989
+  description: Ansible Role for setting up and managing librenms.
+  license: MIT
+  min_ansible_version: 2.7
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+
+  galaxy_tags:
+    - librenms
+    - monitoring
+    - snmp
+
+dependencies:
+  - role: geerlingguy.mysql
+    vars:
+      mysql_packages:
+        - mariadb-client
+        - mariadb-server
+        - python3-mysqldb
+      mysql_databases: "{{ librenms_sql_databases }}"
+      mysql_users: "{{ librenms_sql_users }}"
+      mysql_bind_address: '127.0.0.1'
+      mysql_innodb_file_per_table: "1"
+      mysql_lower_case_table_names: "0"
+    when: librenms_install_mysql | default(false, true)
+    tags: mysql
+
+#  - role: geerlingguy.php
+#    vars:
+#      php_enable_php_fpm: true
+#      php_fpm_state: started
+#      php_fpm_enabled_on_boot: true
+#      php_fpm_handler_state: restarted
+#      php_fpm_pools:
+#        - pool_name: librenms
+#          pool_template: www.conf.j2
+#          pool_listen: "/run/php-fpm-librenms.sock"
+#          pool_listen_allowed_clients: "127.0.0.1"
+#          pool_pm: dynamic
+#          pool_pm_max_children: 5
+#          pool_pm_start_servers: 2
+#          pool_pm_min_spare_servers: 1
+#          pool_pm_max_spare_servers: 3
+#          pool_pm_max_requests: 500
+#      php_fpm_pool_user: "{{ librenms_user }}"
+#      php_fpm_pool_group: "{{ librenms_group }}"
+#      php_date_timezone: "Europe/Stockholm"
+#      php_packages_extra:
+#        - php7.4-gmp
+#        - php7.4-mysql
+#        - php7.4-snmp
+#        - php7.4-zip
+#    when: librenms_install_php | default(false, true)
+#    tags: php
+
+  - role: geerlingguy.apache
+    vars:
+      apache_remove_default_vhost: true
+      apache_allow_override: "All"
+      apache_options: "-Indexes +FollowSymLinks"
+      apache_mods_enabled:
+       - proxy_fcgi
+       - setenvif
+       - rewrite
+       - proxy
+       - ssl
+      apache_vhosts:
+       - servername: "{{ ansible_fqdn }}"
+         documentroot: "/var/www/html"
+         extra_parameters: |
+           <IfModule mod_rewrite.c>
+           RewriteEngine On
+           RewriteCond %{HTTPS} !=on
+           RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R,L]
+           </IfModule>
+      apache_vhosts_ssl:
+       - servername: "{{ ansible_fqdn }}"
+         documentroot: "{{ librenms_home }}/html/"
+         certificate_file: "/etc/ssl/certs/ssl-cert-snakeoil.pem"
+         certificate_key_file: "/etc/ssl/private/ssl-cert-snakeoil.key"
+         extra_parameters: |
+                     AllowEncodedSlashes NoDecode
+                     <Directory "{{ librenms_home }}/html/">
+                       Require all granted
+                       AllowOverride All
+                       Options FollowSymLinks MultiViews
+                     </Directory>
+
+                     # Enable http authorization headers
+                     <IfModule setenvif_module>
+                       SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=$1
+                     </IfModule>
+
+                     <FilesMatch ".+\.php$">
+                       SetHandler "proxy:unix:/run/php-fpm-librenms.sock|fcgi://localhost"
+                     </FilesMatch>
+    when:
+      - librenms_install_apache | default(false, true)
+      - not librenms_install_varnish
+    tags: apache
+
+  - role: geerlingguy.apache
+    vars:
+      apache_remove_default_vhost: true
+      apache_allow_override: "All"
+      apache_options: "-Indexes +FollowSymLinks"
+      apache_mods_enabled:
+        - proxy_fcgi
+        - setenvif
+        - rewrite
+        - proxy
+        - ssl
+        - headers
+        - proxy_http
+      apache_listen_port: 8080
+      apache_vhosts:
+        - servername: "{{ ansible_fqdn }}"
+          documentroot: "{{ librenms_home }}/html/"
+          extra_parameters: |
+                     AllowEncodedSlashes NoDecode
+                     <Directory "{{ librenms_home }}/html/">
+                       Require all granted
+                       AllowOverride All
+                       Options FollowSymLinks MultiViews
+                     </Directory>
+
+                     # Enable http authorization headers
+                     <IfModule setenvif_module>
+                       SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=$1
+                     </IfModule>
+
+                     <FilesMatch ".+\.php$">
+                       SetHandler "proxy:unix:/run/php-fpm-librenms.sock|fcgi://localhost"
+                     </FilesMatch>
+
+      apache_vhosts_ssl:
+        - servername: "{{ ansible_fqdn }}"
+          certificate_file: "/etc/ssl/certs/ssl-cert-snakeoil.pem"
+          certificate_key_file: "/etc/ssl/private/ssl-cert-snakeoil.key"
+          extra_parameters: |
+            RequestHeader set X-Forwarded-Proto "https"
+            ProxyPreserveHost On
+            ProxyPass / http://127.0.0.1:80/
+            ProxyPassReverse / http://127.0.0.1:80/
+    when:
+      - librenms_install_apache | default(false, true)
+      - librenms_install_varnish
+    tags: apache
+
+  - role: ansible-role-snmp
+    vars:
+      snmp_install: true
+      snmp_manage_config: true
+      snmp_syslocation: "Rack, Room, Building, City, Country [Lat, Lon]"
+      snmp_syscontact: Your Name <your@email.address>
+      snmp_security_names:
+        - name: readonly
+          source: default
+          community: RANDOMSTRINGGOESHERE
+      snmp_groups:
+        - name: MyROGroup
+          security_model: v2c
+          security_name: readonly
+      snmp_accesses:
+        - group: MyROGroup
+          context: ""
+          security_model: any
+          security_level: noauth
+          prefix: exact
+          read: all
+          write: none
+          notif: none
+      snmp_views:
+        - name: all
+          type: included
+          subtree: ".1"
+      snmp_custom_config: |
+        extend distro /usr/bin/distro
+        extend hardware '/bin/cat /sys/devices/virtual/dmi/id/product_name'
+        extend manufacturer '/bin/cat /sys/devices/virtual/dmi/id/sys_vendor'
+        extend serial '/bin/cat /sys/devices/virtual/dmi/id/product_serial'
+        extend osupdate /usr/bin/osupdate
+      snmp_download_files:
+        - name: distro
+          url: https://raw.githubusercontent.com/librenms/librenms-agent/master/snmp/distro
+          path: /usr/bin/distro
+          mode: '0755'
+        - name: osupdate
+          url: https://raw.githubusercontent.com/librenms/librenms-agent/master/snmp/osupdate
+          path: /usr/bin/osupdate
+          mode: '0755'
+      snmp_set_product_serial_permissions: true
+    when: librenms_install_snmp | default(false, true)
+    tags: snmp
+
+  - role: geerlingguy.varnish
+    when: librenms_install_varnish | default(false, true)
+    tags: varnish
