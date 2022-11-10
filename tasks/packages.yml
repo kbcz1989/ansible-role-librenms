@@ -15,3 +15,11 @@
     cache_valid_time: 3600
   when: ansible_architecture == "x86_64" and
         ansible_distribution == "Ubuntu"
+
+- name: install MySQL Client
+  apt:
+    name: "{{ mysql_client_package }}"
+    cache_valid_time: 3600
+  when: ansible_architecture == "x86_64" and
+        ansible_distribution == "Ubuntu" and
+        mysql_install_client == true

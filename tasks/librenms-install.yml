@@ -124,12 +124,3 @@
     dest: /etc/bash_completion.d/
   tags:
     - lnms
-
-#- name: Update running daily.sh.  # noqa 301
-#  command: "./daily.sh"
-#  args:
-#    chdir: "{{ librenms_home }}"
-#  become_user: "{{ librenms_user }}"
-#  become: yes
-#  tags:
-#    - run_daily.sh

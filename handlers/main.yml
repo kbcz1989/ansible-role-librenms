@@ -1,8 +1,8 @@
 ---
 # handlers file for ansible-role-librenms
-- name: restart apache
+- name: restart webserver
   service:
-    name: "apache2"
+    name: "{{ librenms_webserver }}"
     state: "restarted"
 
 - name: restart rrdcached

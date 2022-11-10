@@ -30,34 +30,6 @@ dependencies:
     when: librenms_install_mysql | default(false, true)
     tags: mysql
 
-#  - role: geerlingguy.php
-#    vars:
-#      php_enable_php_fpm: true
-#      php_fpm_state: started
-#      php_fpm_enabled_on_boot: true
-#      php_fpm_handler_state: restarted
-#      php_fpm_pools:
-#        - pool_name: librenms
-#          pool_template: www.conf.j2
-#          pool_listen: "/run/php-fpm-librenms.sock"
-#          pool_listen_allowed_clients: "127.0.0.1"
-#          pool_pm: dynamic
-#          pool_pm_max_children: 5
-#          pool_pm_start_servers: 2
-#          pool_pm_min_spare_servers: 1
-#          pool_pm_max_spare_servers: 3
-#          pool_pm_max_requests: 500
-#      php_fpm_pool_user: "{{ librenms_user }}"
-#      php_fpm_pool_group: "{{ librenms_group }}"
-#      php_date_timezone: "Europe/Stockholm"
-#      php_packages_extra:
-#        - php7.4-gmp
-#        - php7.4-mysql
-#        - php7.4-snmp
-#        - php7.4-zip
-#    when: librenms_install_php | default(false, true)
-#    tags: php
-
   - role: geerlingguy.apache
     vars:
       apache_remove_default_vhost: true
@@ -102,54 +74,6 @@ dependencies:
     when:
       - librenms_install_apache | default(false, true)
       - not librenms_install_varnish
-    tags: apache
-
-  - role: geerlingguy.apache
-    vars:
-      apache_remove_default_vhost: true
-      apache_allow_override: "All"
-      apache_options: "-Indexes +FollowSymLinks"
-      apache_mods_enabled:
-        - proxy_fcgi
-        - setenvif
-        - rewrite
-        - proxy
-        - ssl
-        - headers
-        - proxy_http
-      apache_listen_port: 8080
-      apache_vhosts:
-        - servername: "{{ ansible_fqdn }}"
-          documentroot: "{{ librenms_home }}/html/"
-          extra_parameters: |
-                     AllowEncodedSlashes NoDecode
-                     <Directory "{{ librenms_home }}/html/">
-                       Require all granted
-                       AllowOverride All
-                       Options FollowSymLinks MultiViews
-                     </Directory>
-
-                     # Enable http authorization headers
-                     <IfModule setenvif_module>
-                       SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=$1
-                     </IfModule>
-
-                     <FilesMatch ".+\.php$">
-                       SetHandler "proxy:unix:/run/php-fpm-librenms.sock|fcgi://localhost"
-                     </FilesMatch>
-
-      apache_vhosts_ssl:
-        - servername: "{{ ansible_fqdn }}"
-          certificate_file: "/etc/ssl/certs/ssl-cert-snakeoil.pem"
-          certificate_key_file: "/etc/ssl/private/ssl-cert-snakeoil.key"
-          extra_parameters: |
-            RequestHeader set X-Forwarded-Proto "https"
-            ProxyPreserveHost On
-            ProxyPass / http://127.0.0.1:80/
-            ProxyPassReverse / http://127.0.0.1:80/
-    when:
-      - librenms_install_apache | default(false, true)
-      - librenms_install_varnish
     tags: apache
 
   - role: ansible-role-snmp

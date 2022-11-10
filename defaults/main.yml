@@ -21,7 +21,20 @@ librenms_packages:
   - python3-setuptools
   - python3-systemd
   - python3-pip
+  - php-cli 
+  - php-curl 
+  - php-fpm 
+  - php-gd 
+  - php-gmp 
+  - php-json 
+  - php-mbstring 
+  - php-mysql 
+  - php-snmp 
+  - php-xml 
+  - php-zip
 
+mysql_client_package: mysql-client-core-8.0
+mysql_install_client: true
 # User and group to create with home directory
 librenms_user: librenms
 librenms_home: /opt/librenms
@@ -105,21 +118,27 @@ librenms_ignore_mounts_regexp: []
 librenms_rrdcached: unix:/var/run/rrdcached.sock
 librenms_rrdcached_settings:
   - key: WRITE_TIMEOUT
-    value: 1800
+    value: "{{ librenms_rrdcached_write_timeout | default(1800) }}"
   - key: WRITE_JITTER
-    value: 1800
+    value: "{{ librenms_rrdcached_write_jitter | default(1800) }}"
   - key: WRITE_THREADS
-    value: 4
+    value: "{{ librenms_rrdcached_write_threads | default(4) }}"
   - key: BASE_PATH
-    value: "{{ librenms_home}}/rrd/"
+    value: "{{ librenms_rrdcached_base_path |  default('/etc/librenms/rrd/') }}"
+  - key: JOURNAL_PATH
+    value: "{{ librenms_rrdcached_journal_path |  default('/var/lib/rrdcached/journal/') }}"
   - key: SOCKGROUP
-    value: librenms
+    value: "{{ librenms_rrdcached_sockgroup | default('librenms') }}"
+  - key: SOCKFILE
+    value: "{{ librenms_rrdcached_sockfile | default('/run/rrdcached.sock') }}"
   - key: DAEMON_GROUP
-    value: librenms
-  - key: DAEMON_USER
-    value: librenms
+    value: "{{ librenms_rrdcached_daemon_group | default('librenms') }}"
   - key: BASE_OPTIONS
-    value: "-B -F -R"
+    value: "{{ librenms_rrdcached_write_base_options | default('-B -F -R') }}"
+  - key: PIDFILE
+    value: "{{ librenms_rrdcached_pidfile | default('/run/rrdcached.pid') }}"
+  - key: NETWORK_OPTIONS
+    value: "{{ librenms_rrdcached_network_options | default('') }}"
 
 # The rrdtool version that is used
 librenms_rrdtool_version: 1.7.0
@@ -129,6 +148,7 @@ librenms_config_nets: []
 # - 192.168.10.0/24
 
 # snmp configuration
+librenms_config_snmp: false
 librenms_config_snmp_timeout: 1
 librenms_config_snmp_retries: 3
 librenms_config_snmp_community: community
@@ -174,17 +194,18 @@ librenms_nagios_plugins:
 librenms_git_tag:
 
 librenms_environment_settings:
-  - old_line: "^#DB_HOST="
-    new_line: "DB_HOST=localhost"
-  - old_line: "^#DB_DATABASE="
+  - old_line: "^#?DB_HOST="
+    new_line: "DB_HOST={{ librenms_sql_host | default('localhost')}}"
+  - old_line: "^#?DB_DATABASE="
     new_line: "DB_DATABASE={{ librenms_sql_databases[0].name }}"
-  - old_line: "^#DB_USERNAME="
+  - old_line: "^#?DB_USERNAME="
     new_line: "DB_USERNAME={{ librenms_sql_users[0].name }}"
-  - old_line: "^#DB_PASSWORD="
+  - old_line: "^#?DB_PASSWORD="
     new_line: "DB_PASSWORD={{ librenms_sql_db_password }}"
-  - old_line: "^#APP_URL="
+  - old_line: "^#?APP_URL="
     new_line: "APP_URL=http://{{ librenms_config_mydomain }}"
 
+librenms_custom_env:
 librenms_custom_config:
 
 librenms_install_mysql: true
@@ -215,3 +236,8 @@ librenms_socialite_saml_plugin_settings:
 #  metadata:
 
 librenms_postinst_config: []
+
+# Don't run everything on pollers
+librenms_poller_only: false
+
+librenms_webserver: apache2

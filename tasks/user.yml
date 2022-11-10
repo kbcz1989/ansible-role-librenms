@@ -15,7 +15,7 @@
     system: yes
     state: present
   notify:
-    - restart apache
+    - restart webserver
 
 - name: Add www-data to librenms group.
   user:
@@ -24,4 +24,4 @@
       - www-data
       - "{{ librenms_group }}"
   notify:
-    - restart apache
+    - restart webserver
