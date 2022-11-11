@@ -24,17 +24,19 @@ $config['rrdtool_version'] = "{{ librenms_rrdtool_version }}";
 ### Update configuration
 $config['update_channel'] = 'release';  # uncomment to follow the monthly release channel
 
+{% if librenms_config_snmp %}
 ### SNMP configuration
 $config['snmp']['community']            = array("{{ librenms_config_snmp_community }}");
 $config['snmp']['timeout'] = {{ librenms_config_snmp_timeout }};
 $config['snmp']['retries'] = {{ librenms_config_snmp_retries }};
 $config['snmp']['version']              = ['v3', 'v2c', 'v1'];
-$config['snmp']['v3'][1]['authlevel']   = "{{ librenms_config_snmp_authlevel | mandatory }}";
-$config['snmp']['v3'][1]['authname']    = "{{ librenms_config_snmp_authname | mandatory }}";
-$config['snmp']['v3'][1]['authpass']    = "{{ librenms_config_snmp_authpass | mandatory }}";
+$config['snmp']['v3'][1]['authlevel']   = "{{ librenms_config_snmp_authlevel  }}";
+$config['snmp']['v3'][1]['authname']    = "{{ librenms_config_snmp_authname }}";
+$config['snmp']['v3'][1]['authpass']    = "{{ librenms_config_snmp_authpass }}";
 $config['snmp']['v3'][1]['authalgo']    = "{{ librenms_config_snmp_authalgo | default("MD5", true) }}";
-$config['snmp']['v3'][1]['cryptopass']  = "{{ librenms_config_snmp_cryptopass | mandatory }}";
+$config['snmp']['v3'][1]['cryptopass']  = "{{ librenms_config_snmp_cryptopass }}";
 $config['snmp']['v3'][1]['cryptoalgo']  = "{{ librenms_config_snmp_cryptoalgo | default("DES", true) }}";
+{% endif %}
 
 ### Ignore interfaces
 {% for librenms_config_bad_if_regexp in librenms_config_bad_if_regexps %}
@@ -42,9 +44,11 @@ $config['bad_if_regexp'][] = '{{ librenms_config_bad_if_regexp }}';
 {% endfor %}
 
 ### Auto Discovery configuration
+{% if librenms_config_nets is defined %}
 {% for librenms_config_net in librenms_config_nets %}
-# $config['nets'][] = "{{ librenms_config_net }}";
+$config['nets'][] = "{{ librenms_config_net }}";
 {% endfor %}
+{% endif %}
 
 $config['auth_mechanism']                       = '{{ librenms_config_auth_mechanism }}';
 {% if librenms_config_ldap %}
@@ -103,7 +107,12 @@ $config['influxdb']['timeout'] = 0;
 $config['influxdb']['verifySSL'] = false;
 {% endif %}
 
+{%- if librenms_distributed_poller is defined  %}
+{% for key, value in librenms_distributed_poller %}
+$config["{{ key }}"] = "{{ value }}";
+{% endfor %}
+{% endif %}
+
 {%- if librenms_custom_config | default(None) %}
 {{ librenms_custom_config }}
 {% endif %}
-

@@ -50,6 +50,7 @@
   tags:
     - librenms_socialite
     - librenms_socialite_microsoft_plugin_settings
+  no_log: true
 
 - name: Install Socialite SAML plugin
   become: yes

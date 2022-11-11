@@ -12,12 +12,28 @@
 - name: Update /etc/default/rrdcached
   lineinfile:
     path: "/etc/default/rrdcached"
-    regex: '^#*\s*{{ item.key }}.*$'
+    regex: '^#?{{ item.key }}'
     line: "{{ item.key }}={{ item.value }}"
   with_items: "{{ librenms_rrdcached_settings }}"
   when: ansible_architecture == "x86_64" and
         ansible_os_family == "Debian" and
         librenms_rrdcached is defined
+  notify:
+    - restart rrdcached
+  tags:
+    - rrdcached
+    - rrdcached_configure
+
+- name: Update /etc/default/rrdcached - custom settings
+  lineinfile:
+    path: "/etc/default/rrdcached"
+    regex: '^#?{{ item.key }}'
+    line: "{{ item.key }}={{ item.value }}"
+  with_items: "{{ librenms_rrdcached_settings_custom }}"
+  when: ansible_architecture == "x86_64" and
+        ansible_os_family == "Debian" and
+        librenms_rrdcached is defined and
+        librenms_rrdcached_settings_custom is defined
   notify:
     - restart rrdcached
   tags:

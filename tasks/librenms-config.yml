@@ -7,6 +7,32 @@
   with_items: "{{ librenms_environment_settings }}"
   no_log: true
 
+- name: Update app key settings in "{{ librenms_home }}/.env"
+  lineinfile:
+    path: "{{ librenms_home }}/.env"
+    regex: "APP_KEY="
+    line: "APP_KEY={{ librenms_environment_settings_app_key }}"
+  no_log: true
+  when: librenms_environment_settings_app_key is defined
+
+- name: Set additional env settings in "{{ librenms_home }}/.env"
+  lineinfile:
+    path: "{{ librenms_home }}/.env"
+    regex: "{{ item.old_line }}"
+    line: "{{ item.new_line }}"
+  with_items: "{{ librenms_custom_env }}"
+  when: (librenms_custom_env is defined) and (librenms_custom_env|length > 0)
+  no_log: true
+
+- name: Set redis settings in "{{ librenms_home }}/.env"
+  lineinfile:
+    path: "{{ librenms_home }}/.env"
+    regex: "{{ item.old_line }}"
+    line: "{{ item.new_line }}"
+  with_items: "{{ librenms_environment_redis }}"
+  when: (librenms_environment_redis is defined) and (librenms_environment_redis|length > 0)
+  no_log: true
+
 - name: Build DB
   become: True
   become_user: "{{ librenms_user }}"
@@ -19,6 +45,7 @@
   changed_when: "'Nothing to migrate.' not in build_db.stdout"
   tags:
     - build_db
+  when: not librenms_poller_only
 
 - name: Create admin user and password.
   command: "./adduser.php {{ librenms_admin_user }} {{ librenms_admin_password }} 10"
@@ -30,6 +57,7 @@
   changed_when: "'User admin already exists!' not in librenms_admin_user.stdout"
   tags:
     - librenms_admin_user
+  when: not librenms_poller_only
 
 - name: Deploy config.php
   template:
@@ -41,7 +69,7 @@
   tags:
     - config.php
   notify:
-    - restart apache
+    - restart webserver
 
 - name: Delete "INSTALL=true" in "{{ librenms_home }}/.env"
   lineinfile:
@@ -84,4 +112,3 @@
   become: true
   tags:
     - logrotate
-

@@ -20,6 +20,7 @@
   import_tasks: rrdcached.yml
   tags:
     - rrdcached
+  when: not librenms_poller_only
 
 - name: Install nagios plugins.
   import_tasks: nagios_plugins.yml
@@ -38,6 +39,7 @@
   tags:
     - librenms_socialite
     - librenms
+  when: not librenms_poller_only
 
 - name: LibreNMS postinst configuration
   import_tasks: librenms-postinst.yml
